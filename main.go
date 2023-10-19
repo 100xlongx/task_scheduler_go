@@ -21,7 +21,7 @@ type PrintJob struct {
 	message string
 }
 
-type SQLiteJob struct {
+type StoreTimestampJob struct {
 	dbw *DBWrapper
 }
 
@@ -48,35 +48,18 @@ func (p *PrintJob) Run() {
 	fmt.Println(p.message, "at: ", time.Now())
 }
 
-func (p *SQLiteJob) Run() {
+func (p *StoreTimestampJob) Run() {
 	currentTime := time.Now()
 
-	//start transaction
-	tx, txErr := p.dbw.db.Begin()
-
-	if txErr != nil {
-		log.Println("Failed to start transaction:", txErr)
-		return
-	}
-
-	defer tx.Rollback()
-
-	_, err := p.dbw.WriteData("INSERT INTO timestamps (timestamp) VALUES (?)", currentTime)
-
-	if err != nil {
+	if _, err := p.dbw.WriteData("INSERT INTO timestamps (timestamp) VALUES (?)", currentTime); err != nil {
 		log.Printf("Failed to insert timestamp: %v", err)
-		return
-	}
-
-	if err = tx.Commit(); err != nil {
-		log.Fatal(err)
 	}
 
 	fmt.Println("Timestamp inserted:", currentTime)
 }
 
-func InitSQLiteJob(dbw *DBWrapper) *SQLiteJob {
-	job := &SQLiteJob{dbw: dbw}
+func InitStoreTimestampJob(dbw *DBWrapper) *StoreTimestampJob {
+	job := &StoreTimestampJob{dbw: dbw}
 
 	return job
 }
@@ -167,7 +150,7 @@ func main() {
 
 	c := cron.New(cron.WithSeconds())
 
-	job := InitSQLiteJob(dbw)
+	job := InitStoreTimestampJob(dbw)
 
 	_, err := c.AddJob("0 * * * * *", job)
 
